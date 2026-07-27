@@ -1,0 +1,308 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>스마트 AI 공부 메이트</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+  <style>
+    body { background-color: #f0f7ff; color: #1e293b; font-family: system-ui, -apple-system, sans-serif; }
+    .bg-blue-primary { background-color: #2563eb; }
+    .bg-blue-soft { background-color: #eff6ff; }
+    .text-blue-primary { color: #2563eb; }
+    /* 앱 잠금 모드 전체화면 */
+    #lockOverlay { display: none; }
+    #lockOverlay.active { display: flex; }
+  </style>
+</head>
+<body class="min-h-screen p-4 md:p-6 flex flex-col gap-6 max-w-7xl mx-auto">
+
+  <!-- 헤더 & 재화/포인트 표시 -->
+  <header class="bg-white rounded-2xl p-5 shadow-sm border border-blue-100 flex justify-between items-center">
+    <div class="flex items-center gap-3">
+      <div class="w-10 h-10 bg-blue-500 rounded-xl flex items-center justify-center text-white text-xl">
+        <i class="fa-solid fa-graduation-cap"></i>
+      </div>
+      <div>
+        <h1 class="text-xl font-bold text-slate-800">Smart AI Study Companion</h1>
+        <p class="text-xs text-blue-500 font-medium">파란 하늘처럼 쾌적한 나의 학습 공간</p>
+      </div>
+    </div>
+    
+    <!-- 보유 재화 -->
+    <div class="bg-blue-soft border border-blue-200 px-4 py-2 rounded-xl flex items-center gap-2">
+      <i class="fa-solid fa-[#f59e0b] fa-coins text-amber-500 text-lg"></i>
+      <span class="text-sm font-semibold text-slate-600">누적 재화:</span>
+      <span id="coinCount" class="text-lg font-bold text-blue-600">0</span>
+      <span class="text-xs text-slate-400">Gem</span>
+    </div>
+  </header>
+
+  <!-- [상단] 입력 영역 (성적 입력 & 공부 타이머 설정) -->
+  <section class="grid grid-cols-1 md:grid-cols-2 gap-6">
+    
+    <!-- 1. 성적 입력 및 반 결정 -->
+    <div class="bg-white p-5 rounded-2xl shadow-sm border border-blue-100 flex flex-col justify-between">
+      <div>
+        <h2 class="text-base font-bold text-slate-700 mb-3 flex items-center gap-2">
+          <i class="fa-solid fa-chart-line text-blue-500"></i> AI 성적 분석 & 반 배치
+        </h2>
+        <div class="space-y-3">
+          <input type="text" id="gradeInput" placeholder="예: 국어 85, 수학 92, 영어 78 또는 주요 과목 등급" 
+                 class="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-400 text-sm">
+          <button onclick="analyzeGrade()" id="analyzeBtn" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium py-2.5 rounded-xl transition-colors text-sm">
+            AI 분석 및 반 결정 요청
+          </button>
+        </div>
+      </div>
+      <div id="classResult" class="mt-3 p-3 rounded-xl bg-blue-50 border border-blue-200 text-xs font-semibold text-blue-700 text-center">
+        성적을 입력하시면 AI가 맞춤 반(상위/중위/하위)을 결정해 드립니다.
+      </div>
+    </div>
+
+    <!-- 2. 공부 타이머 & 집중 시작 -->
+    <div class="bg-white p-5 rounded-2xl shadow-sm border border-blue-100 flex flex-col justify-between">
+      <div>
+        <h2 class="text-base font-bold text-slate-700 mb-3 flex items-center gap-2">
+          <i class="fa-solid fa-clock text-blue-500"></i> AI 집중 공부 타이머
+        </h2>
+        <div class="flex items-center gap-4 mb-3">
+          <div class="text-3xl font-extrabold text-blue-600 font-mono tracking-wider" id="timerDisplay">25:00</div>
+          <div class="text-xs text-slate-500">
+            * 타이머 가동 시 다른 앱 사용 금지(잠금) 모드가 발동되며, 공부 시간에 따라 지속적으로 재화가 쌓입니다.
+          </div>
+        </div>
+      </div>
+      <div class="flex gap-2">
+        <button onclick="startTimer()" id="startBtn" class="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-medium py-2.5 rounded-xl transition-colors text-sm flex items-center justify-center gap-2">
+          <i class="fa-solid fa-play"></i> 타이머 시작 & 잠금
+        </button>
+        <button onclick="stopTimer()" class="bg-slate-100 hover:bg-slate-200 text-slate-600 font-medium px-4 py-2.5 rounded-xl text-sm">
+          정지
+        </button>
+      </div>
+    </div>
+
+  </section>
+
+  <!-- [하단] 2분할 출력 영역 (왼쪽: 타임테이블 / 오른쪽: AI 설명) -->
+  <section class="grid grid-cols-1 md:grid-cols-2 gap-6 flex-1">
+    
+    <!-- 하단 좌측: 타임테이블 (알람 기능 포함) -->
+    <div class="bg-white p-5 rounded-2xl shadow-sm border border-blue-100 flex flex-col">
+      <div class="flex justify-between items-center mb-4">
+        <h2 class="text-base font-bold text-slate-700 flex items-center gap-2">
+          <i class="fa-solid fa-calendar-check text-blue-500"></i> 오늘 학습 타임테이블
+        </h2>
+        <button onclick="addSchedule()" class="text-xs bg-blue-100 hover:bg-blue-200 text-blue-700 px-3 py-1.5 rounded-lg font-medium">
+          + 일정 추가
+        </button>
+      </div>
+
+      <!-- 일정 목록 -->
+      <div id="scheduleList" class="space-y-3 overflow-y-auto max-h-[350px] pr-1">
+        <!-- 기본 일정 sample -->
+        <div class="flex items-center justify-between p-3 rounded-xl bg-slate-50 border border-slate-100" data-time="09:00" data-task="수학 오답노트 정리">
+          <div class="flex items-center gap-3">
+            <span class="text-xs font-bold bg-blue-500 text-white px-2.5 py-1 rounded-md">09:00</span>
+            <span class="text-sm font-medium text-slate-700">수학 오답노트 정리</span>
+          </div>
+          <span class="text-xs text-blue-500 font-semibold flex items-center gap-1">
+            <i class="fa-regular fa-bell"></i> 알람 대기
+          </span>
+        </div>
+        <div class="flex items-center justify-between p-3 rounded-xl bg-slate-50 border border-slate-100" data-time="14:00" data-task="영어 단어 50개 암기">
+          <div class="flex items-center gap-3">
+            <span class="text-xs font-bold bg-blue-500 text-white px-2.5 py-1 rounded-md">14:00</span>
+            <span class="text-sm font-medium text-slate-700">영어 단어 50개 암기</span>
+          </div>
+          <span class="text-xs text-blue-500 font-semibold flex items-center gap-1">
+            <i class="fa-regular fa-bell"></i> 알람 대기
+          </span>
+        </div>
+      </div>
+    </div>
+
+    <!-- 하단 우측: AI 설명 및 진단 결과 -->
+    <div class="bg-white p-5 rounded-2xl shadow-sm border border-blue-100 flex flex-col">
+      <h2 class="text-base font-bold text-slate-700 mb-4 flex items-center gap-2">
+        <i class="fa-solid fa-robot text-blue-500"></i> AI 메이트 리포트 & 학습 피드백
+      </h2>
+      <div id="aiResponse" class="flex-1 p-4 rounded-xl bg-blue-50/50 border border-blue-100 text-sm text-slate-600 leading-relaxed overflow-y-auto max-h-[350px] whitespace-pre-wrap">
+AI 메이트가 준비되어 있습니다. 
+성적을 입력하면 맞춰진 클래스 분반 분석 결과를 안내해 드리며, 공부 타이머 완료 시 피드백을 전달해 드립니다.
+      </div>
+    </div>
+
+  </section>
+
+  <!-- [화면 잠금 / 몰입 모드 오버레이] -->
+  <div id="lockOverlay" class="fixed inset-0 bg-blue-900/95 backdrop-blur-md z-50 flex-col items-center justify-center text-white p-6">
+    <div class="text-center max-w-md space-y-6">
+      <div class="w-20 h-20 bg-blue-500/30 border-2 border-blue-300 rounded-full flex items-center justify-center mx-auto text-3xl animate-pulse">
+        <i class="fa-solid fa-lock text-blue-200"></i>
+      </div>
+      <div>
+        <h2 class="text-2xl font-bold mb-2">집중 모드가 가동 중입니다</h2>
+        <p class="text-sm text-blue-200">스마트폰의 다른 앱 사용이 제한됩니다.<br>AI와 함께 목표 공부 시간을 완수해 보세요!</p>
+      </div>
+
+      <div class="text-5xl font-mono font-extrabold text-blue-300 tracking-wider py-4 bg-white/5 rounded-2xl border border-white/10" id="lockTimerDisplay">
+        25:00
+      </div>
+
+      <div class="p-3 bg-blue-800/60 rounded-xl text-xs text-blue-200 border border-blue-700">
+        <i class="fa-solid fa-coins text-amber-400 mr-1"></i> 공부 시간이 지남에 따라 실시간으로 재화가 적립됩니다.
+      </div>
+
+      <button onclick="stopTimer()" class="w-full bg-red-500/80 hover:bg-red-600 text-white font-medium py-3 rounded-xl transition-colors text-sm">
+        포기하고 잠금 해제하기
+      </button>
+    </div>
+  </div>
+
+  <!-- 알람 팝업 모달 -->
+  <dialog id="alarmModal" class="p-6 rounded-2xl shadow-xl border border-blue-200 max-w-sm w-full backdrop:bg-slate-900/40">
+    <div class="text-center space-y-4">
+      <div class="w-12 h-12 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center mx-auto text-xl">
+        <i class="fa-solid fa-bell"></i>
+      </div>
+      <h3 class="text-lg font-bold text-slate-800">일정 알람</h3>
+      <p id="alarmMessage" class="text-sm text-slate-600 font-medium"></p>
+      <button onclick="document.getElementById('alarmModal').close()" class="w-full bg-blue-600 text-white py-2 rounded-xl text-sm font-medium">
+        확인했습니다
+      </button>
+    </div>
+  </dialog>
+
+  <script>
+    let timer = null;
+    let secondsLeft = 1500; // 기본 25분
+    let coins = 0;
+
+    // 1. Gemini API 호출 함수
+    async function callGemini(prompt, type = 'general') {
+      try {
+        const res = await fetch('/api/generate', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ prompt, type })
+        });
+        const data = await res.json();
+        if (data.error) throw new Error(data.error);
+        return data.result;
+      } catch (err) {
+        alert(err.message || 'AI 서비스 연결 실패');
+        return null;
+      }
+    }
+
+    // 2. 성적 입력 및 AI 반 결정
+    async function analyzeGrade() {
+      const input = document.getElementById('gradeInput').value.trim();
+      if (!input) return alert('성적을 입력해 주세요!');
+
+      const resultBox = document.getElementById('classResult');
+      const responseBox = document.getElementById('aiResponse');
+      
+      resultBox.innerText = 'AI가 성적 분석 중...';
+      responseBox.innerText = '성적 데이터를 바탕으로 최적의 반 배치 및 학습 가이드를 생성하고 있습니다...';
+
+      const prompt = `내 성적 정보는 다음과 같아: "${input}". 
+      1. 내 성적을 종합 평가해서 [상위권 반 / 중위권 반 / 하위권 반] 중 어디에 해당하는지 첫 줄에 명확히 알려줘.
+      2. 이 반에 맞는 앞으로의 공부 방향과 격려 메시지를 작성해줘.`;
+
+      const reply = await callGemini(prompt, 'placement');
+      if (reply) {
+        responseBox.innerText = reply;
+        if (reply.includes('상위권')) {
+          resultBox.className = 'mt-3 p-3 rounded-xl bg-indigo-50 border border-indigo-200 text-xs font-bold text-indigo-700 text-center';
+          resultBox.innerText = '🎉 축하합니다! [상위권 반]에 배치되셨습니다.';
+        } else if (reply.includes('중위권')) {
+          resultBox.className = 'mt-3 p-3 rounded-xl bg-blue-50 border border-blue-200 text-xs font-bold text-blue-700 text-center';
+          resultBox.innerText = '👍 멋집니다! [중위권 반]에 배치되셨습니다.';
+        } else {
+          resultBox.className = 'mt-3 p-3 rounded-xl bg-sky-50 border border-sky-200 text-xs font-bold text-sky-700 text-center';
+          resultBox.innerText = '🌱 가능성이 높습니다! [하위권 반] 맞춤 케어가 시작됩니다.';
+        }
+      }
+    }
+
+    // 3. 타이머 & 잠금 모드 & 재화 쌓기
+    function updateTimerDisplay() {
+      const mins = String(Math.floor(secondsLeft / 60)).padStart(2, '0');
+      const secs = String(secondsLeft % 60).padStart(2, '0');
+      const str = `${mins}:${secs}`;
+      document.getElementById('timerDisplay').innerText = str;
+      document.getElementById('lockTimerDisplay').innerText = str;
+    }
+
+    function startTimer() {
+      if (timer) return;
+      document.getElementById('lockOverlay').classList.add('active');
+
+      timer = setInterval(() => {
+        if (secondsLeft > 0) {
+          secondsLeft--;
+          updateTimerDisplay();
+
+          // 10초마다 재화 1개 적립
+          if (secondsLeft % 10 === 0) {
+            coins += 1;
+            document.getElementById('coinCount').innerText = coins;
+          }
+        } else {
+          stopTimer();
+          alert('🎉 약속한 공부 시간을 완수했습니다! 보상 재화가 지급되었습니다.');
+        }
+      }, 1000);
+    }
+
+    function stopTimer() {
+      clearInterval(timer);
+      timer = null;
+      document.getElementById('lockOverlay').classList.remove('active');
+    }
+
+    // 4. 타임테이블 추가 및 실시간 알람 체크
+    function addSchedule() {
+      const time = prompt('시간을 입력하세요 (예: 15:30)', '15:30');
+      const task = prompt('할 일을 입력하세요', '영단어 복습');
+      if (!time || !task) return;
+
+      const list = document.getElementById('scheduleList');
+      const item = document.createElement('div');
+      item.className = 'flex items-center justify-between p-3 rounded-xl bg-slate-50 border border-slate-100';
+      item.setAttribute('data-time', time);
+      item.setAttribute('data-task', task);
+      item.innerHTML = `
+        <div class="flex items-center gap-3">
+          <span class="text-xs font-bold bg-blue-500 text-white px-2.5 py-1 rounded-md">${time}</span>
+          <span class="text-sm font-medium text-slate-700">${task}</span>
+        </div>
+        <span class="text-xs text-blue-500 font-semibold flex items-center gap-1">
+          <i class="fa-regular fa-bell"></i> 알람 대기
+        </span>
+      `;
+      list.appendChild(item);
+    }
+
+    // 매 분마다 타임테이블 시간 알람 체크
+    setInterval(() => {
+      const now = new Date();
+      const currentHM = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+      
+      document.querySelectorAll('#scheduleList > div').forEach(el => {
+        if (el.getAttribute('data-time') === currentHM && !el.classList.contains('alerted')) {
+          el.classList.add('alerted');
+          document.getElementById('alarmMessage').innerText = `[${currentHM}] 예정된 작업: "${el.getAttribute('data-task')}" 할 시간입니다!`;
+          document.getElementById('alarmModal').showModal();
+        }
+      });
+    }, 10000);
+
+    updateTimerDisplay();
+  </script>
+</body>
+</html>
