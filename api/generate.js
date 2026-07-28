@@ -20,9 +20,9 @@ export default async function handler(req, res) {
 1. [상위권 반 / 중위권 반 / 하위권 반] 중 어느 반에 해당하는지 명확하게 분류해 주세요.
 2. 해당 반에 맞춘 구체적인 맞춤형 공부 전략, 취약점 보완법, 그리고 다정한 격려 메시지를 상세히 작성해 주세요.`;
 
-    // 💡 가장 범용적이고 호환성이 뛰어난 gemini-1.5-flash-latest 사용
+    // 💡 가장 범용적이고 호환성이 뛰어난 gemini-3.5-flash-latest 사용
     const model = genAI.getGenerativeModel({
-      model: 'gemini-1.5-flash-latest',
+      model: 'gemini-3.5-flash-latest',
       systemInstruction: systemInstruction,
     });
 
